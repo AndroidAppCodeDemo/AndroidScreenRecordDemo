@@ -3,7 +3,7 @@ import android.app.Activity;
 import android.util.DisplayMetrics;
 import android.view.Display;
 
-public class DisplayScreenUtil {
+public class DisplayScreenHelper {
     private static int mScreenWidth;
     private static int mScreenHeight;
     private static int mScreenDpi;
