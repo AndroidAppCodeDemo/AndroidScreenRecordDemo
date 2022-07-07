@@ -8,8 +8,6 @@ import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.hardware.display.VirtualDisplay;
-import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
@@ -42,7 +40,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private Button mStartBtn;
     private TextView mEndBtn;
-    private TextView mTimeTv;
+    private TextView mRecordStateTv;
 
     /**
      *
@@ -51,10 +49,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private MediaProjectionManager mMediaProjectionManager;
     // 屏幕采集
     private MediaProjection mMediaProjection;
-    // 屏幕、音频录制
-    private MediaRecorder mMediaRecorder;
-    // 创建虚拟屏幕
-    private VirtualDisplay mVirtualDisplay;
 
     /**
      *
@@ -87,8 +81,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // 结束按钮
         mEndBtn = findViewById(R.id.end_btn);
         mEndBtn.setOnClickListener(this);
-        // 录制时间按钮
-        mTimeTv = findViewById(R.id.record_state_tv);
+        // 录制状态显示
+        mRecordStateTv = findViewById(R.id.record_state_tv);
 
         // 绑定后天的录屏服务
         bindScreenRecordService();
@@ -106,7 +100,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         switch (view.getId()) {
             case R.id.start_btn: {
                 // 请求进行屏幕录制
-                startScreenRecord();
+                requestScreenRecord();
                 break;
             }
             case R.id.end_btn: {
@@ -165,35 +159,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         bindService(intent, mServiceConnection, BIND_AUTO_CREATE);
     }
 
-
-    private void startScreenRecord() {
-        if (mMediaProjection == null) {
-            requestScreenRecord();
-            return;
-        }
-        //
-        if (mScreenRecordService != null && !mScreenRecordService.isRunning()) {
-            mScreenRecordService.startRecord();
-            Toast.makeText(MainActivity.this, "返回主屏幕进行录制", Toast.LENGTH_SHORT).show();
-            goToBackground();
-        }
-    }
-
-    private void stopScreenRecord() {
-        if (mScreenRecordService != null && mScreenRecordService.isRunning()) {
-            mScreenRecordService.stopRecord();
-        }
-    }
-
-
     /**
      * 弹窗 请求进行屏幕录制
      */
     private void requestScreenRecord() {
-        //开启录屏请求intent
-        mMediaProjectionManager = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
-        Intent captureIntent = mMediaProjectionManager.createScreenCaptureIntent();
-        startActivityForResult(captureIntent, SCREEN_RECORD_REQUEST_CODE);
+        // 录屏请求intent
+        if (mMediaProjectionManager == null) {
+            mMediaProjectionManager = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+            Intent captureIntent = mMediaProjectionManager.createScreenCaptureIntent();
+            startActivityForResult(captureIntent, SCREEN_RECORD_REQUEST_CODE);
+        }
+        mRecordStateTv.setText("向用户请求录屏授权！");
     }
 
     /**
@@ -204,9 +180,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //设置mediaProjection
         if (mScreenRecordService != null) {
             mScreenRecordService.setMediaProject(mMediaProjection);
-            mScreenRecordService.setConfig(DisplayScreenHelper.getScreenWidth(), DisplayScreenHelper.getScreenWidth(), DisplayScreenHelper.getScreenDpi());
+            mScreenRecordService.setScreenConfig(DisplayScreenHelper.getScreenWidth(), DisplayScreenHelper.getScreenWidth(), DisplayScreenHelper.getScreenDpi());
         }
+        // 开始进行录制
+        startScreenRecord();
     }
+
+    /**
+     * 开始录制
+     */
+    private void startScreenRecord() {
+        //
+        if (mScreenRecordService != null && !mScreenRecordService.isRecording()) {
+            mScreenRecordService.startRecord();
+            Toast.makeText(MainActivity.this, "返回主屏幕进行录制", Toast.LENGTH_SHORT).show();
+            goToBackground();
+        }
+        // 录制中状态
+        mRecordStateTv.setText("录制中...");
+    }
+
+    /**
+     * 结束录制
+     */
+    private void stopScreenRecord() {
+        if (mScreenRecordService != null && mScreenRecordService.isRecording()) {
+            mScreenRecordService.stopRecord();
+        }
+        mRecordStateTv.setText("录制结束！");
+    }
+
 
     private void goToBackground() {
         Intent home = new Intent(Intent.ACTION_MAIN);

@@ -18,6 +18,7 @@ import androidx.annotation.Nullable;
 
 
 import com.xiaxl.android_test.utils.SdCardUtil;
+
 import java.io.IOException;
 
 /**
@@ -25,18 +26,30 @@ import java.io.IOException;
  */
 public class ScreenRecordService extends Service {
 
-
+    /**
+     *
+     */
+    // 屏幕采集
     private MediaProjection mMediaProjection;
+    // 屏幕录制
     private MediaRecorder mMediaRecorder;
+    // 创建虚拟屏幕
     private VirtualDisplay mVirtualDisplay;
 
-    private boolean running;
-    private int width = 720;
-    private int height = 1080;
-    private int dpi;
+    /**
+     * 数据
+     */
+    private boolean isRecording;
+    private int mScreenWidth = 720;
+    private int mScreenHeight = 1080;
+    private int mScreenDpi;
 
-    private String videoPath = "";
+    // 视频存储路径
+    private String mVideoPath = "";
 
+    /**
+     * binder
+     */
     public class ScreenRecordBinder extends Binder {
         public ScreenRecordService getScreenRecordService() {
             return ScreenRecordService.this;
@@ -49,7 +62,7 @@ public class ScreenRecordService extends Service {
 
         HandlerThread serviceThread = new HandlerThread("service_thread", android.os.Process.THREAD_PRIORITY_BACKGROUND);
         serviceThread.start();
-        running = false;
+        isRecording = false;
     }
 
     @Nullable
@@ -58,6 +71,10 @@ public class ScreenRecordService extends Service {
         return new ScreenRecordBinder();
     }
 
+    @Override
+    public boolean onUnbind(Intent intent) {
+        return super.onUnbind(intent);
+    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -69,48 +86,66 @@ public class ScreenRecordService extends Service {
         super.onDestroy();
     }
 
-    @Override
-    public boolean onUnbind(Intent intent) {
-        return super.onUnbind(intent);
+
+    /**
+     * 设置MediaProjection
+     *
+     * @param mediaProjection
+     */
+    public void setMediaProject(MediaProjection mediaProjection) {
+        mMediaProjection = mediaProjection;
     }
 
-    public void setMediaProject(MediaProjection project) {
-        mMediaProjection = project;
+    /**
+     * 是否正在录制
+     *
+     * @return
+     */
+    public boolean isRecording() {
+        return isRecording;
     }
 
-    public boolean isRunning() {
-        return running;
+    /**
+     * 设置屏幕参数
+     *
+     * @param width
+     * @param height
+     * @param dpi
+     */
+    public void setScreenConfig(int width, int height, int dpi) {
+        this.mScreenWidth = width;
+        this.mScreenHeight = height;
+        this.mScreenDpi = dpi;
     }
 
-    public void setConfig(int width, int height, int dpi) {
-        this.width = width;
-        this.height = height;
-        this.dpi = dpi;
-    }
-
+    /**
+     * 开始录制接口
+     *
+     * @return
+     */
     public boolean startRecord() {
-        if (mMediaProjection == null || running) {
+        if (mMediaProjection == null || isRecording) {
             return false;
         }
-        initRecorder();
+        // 准备MediaRecorder
+        prepareMediaRecorder();
+        // 创建虚拟屏幕
         createVirtualDisplay();
-        try {
-            mMediaRecorder.start();
-            running = true;
-            return true;
-        } catch (IllegalStateException e) {
-            e.printStackTrace();
-            Toast.makeText(this, "start 出错，录屏失败！", Toast.LENGTH_SHORT).show();
-            running = false;
-            return false;
-        }
+        // 开始屏幕录制
+        startMediaRecorder();
+        return isRecording;
     }
 
+    /**
+     * 停止录制
+     *
+     * @return
+     */
     public boolean stopRecord() {
-        if (!running) {
+        if (!isRecording) {
             return false;
         }
-        running = false;
+        isRecording = false;
         try {
             mMediaRecorder.stop();
             mMediaRecorder.reset();
@@ -124,16 +159,10 @@ public class ScreenRecordService extends Service {
         return true;
     }
 
-    private void createVirtualDisplay() {
-        try {
-            mVirtualDisplay = mMediaProjection.createVirtualDisplay("MainScreen", width, height, dpi,
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, mMediaRecorder.getSurface(), null, null);
-        } catch (Exception e) {
-            Toast.makeText(this, "virtualDisplay 录屏出错！", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void initRecorder() {
+    /**
+     * MediaRecorder
+     */
+    private void prepareMediaRecorder() {
         mMediaRecorder = new MediaRecorder();
         //设置声音来源
         mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
@@ -142,10 +171,10 @@ public class ScreenRecordService extends Service {
         //设置视频格式
         mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         //设置视频储存地址
-        videoPath = getSaveDirectory() + System.currentTimeMillis() + ".mp4";
-        mMediaRecorder.setOutputFile(videoPath);
+        mVideoPath = getSaveDirectory() + "/" + System.currentTimeMillis() + ".mp4";
+        mMediaRecorder.setOutputFile(mVideoPath);
         //设置视频大小
-        mMediaRecorder.setVideoSize(width, height);
+        mMediaRecorder.setVideoSize(mScreenWidth, mScreenHeight);
         //设置视频编码
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         //设置声音编码
@@ -161,13 +190,43 @@ public class ScreenRecordService extends Service {
         }
     }
 
-    public String getSaveDirectory() {
-        if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
-            String rootDir = SdCardUtil.getPrivateFilePath(this, "video");
-            return rootDir;
-        } else {
-            return null;
+    /**
+     * 创建虚拟屏幕
+     */
+    private void createVirtualDisplay() {
+        try {
+            mVirtualDisplay = mMediaProjection.createVirtualDisplay("MainScreen", mScreenWidth, mScreenHeight, mScreenDpi,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, mMediaRecorder.getSurface(), null, null);
+        } catch (Exception e) {
+            Toast.makeText(this, "virtualDisplay 录屏出错！", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    /**
+     * 开始屏幕录制
+     *
+     * @return
+     */
+    private void startMediaRecorder() {
+        try {
+            mMediaRecorder.start();
+            isRecording = true;
+        } catch (IllegalStateException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "start 出错，录屏失败！", Toast.LENGTH_SHORT).show();
+            isRecording = false;
+        }
+    }
+
+
+    /**
+     * 获取存储路径
+     *
+     * @return
+     */
+    public String getSaveDirectory() {
+        String rootDir = SdCardUtil.getPrivateFilePath(this, "video");
+        return rootDir;
     }
 
 }
