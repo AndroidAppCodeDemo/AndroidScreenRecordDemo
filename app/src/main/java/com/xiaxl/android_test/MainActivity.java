@@ -177,7 +177,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void onScreenRecordGranted(int resultCode, Intent data) {
 
-        mScreenRecordService.notification();
+        mScreenRecordService.showRecordNotification();
 
 
         mMediaProjection = mMediaProjectionManager.getMediaProjection(resultCode, data);

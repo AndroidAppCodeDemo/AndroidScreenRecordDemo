@@ -246,8 +246,10 @@ public class ScreenRecordService extends Service {
     private static final String NOTIFICATION_TICKER = "NOTIFICATION_TICKER";
     private static final int NOTIFICATION_ID = 1001;
 
-
-    public void notification() {
+    /**
+     * 展示屏幕录制的提醒
+     */
+    public void showRecordNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             //Call Start foreground with notification
             Intent notificationIntent = new Intent(this, MainActivity.class);
