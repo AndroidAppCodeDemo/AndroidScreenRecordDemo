@@ -176,11 +176,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * 屏幕录制 用户授权
      */
     private void onScreenRecordGranted(int resultCode, Intent data) {
+
+        mScreenRecordService.notification();
+
+
         mMediaProjection = mMediaProjectionManager.getMediaProjection(resultCode, data);
         //设置mediaProjection
         if (mScreenRecordService != null) {
             mScreenRecordService.setMediaProject(mMediaProjection);
-            mScreenRecordService.setScreenConfig(DisplayScreenHelper.getScreenWidth(), DisplayScreenHelper.getScreenWidth(), DisplayScreenHelper.getScreenDpi());
+            mScreenRecordService.setScreenConfig(DisplayScreenHelper.getScreenWidth(), DisplayScreenHelper.getScreenHeight(), DisplayScreenHelper.getScreenDpi());
         }
         // 开始进行录制
         startScreenRecord();

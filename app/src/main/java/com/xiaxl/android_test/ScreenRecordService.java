@@ -1,13 +1,20 @@
 package com.xiaxl.android_test;
 
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.BitmapFactory;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Environment;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -15,6 +22,7 @@ import android.os.IBinder;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
 
 
 import com.xiaxl.android_test.utils.SdCardUtil;
@@ -194,6 +202,9 @@ public class ScreenRecordService extends Service {
      * 创建虚拟屏幕
      */
     private void createVirtualDisplay() {
+        //
+        //notification();
+        //
         try {
             mVirtualDisplay = mMediaProjection.createVirtualDisplay("MainScreen", mScreenWidth, mScreenHeight, mScreenDpi,
                     DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, mMediaRecorder.getSurface(), null, null);
@@ -227,6 +238,35 @@ public class ScreenRecordService extends Service {
     public String getSaveDirectory() {
         String rootDir = SdCardUtil.getPrivateFilePath(this, "video");
         return rootDir;
+    }
+
+
+    private static final String NOTIFICATION_CHANNEL_ID = "NOTIFICATION_CHANNEL_ID";
+    private static final String NOTIFICATION_CHANNEL_NAME = "NOTIFICATION_CHANNEL_NAME";
+    private static final String NOTIFICATION_TICKER = "NOTIFICATION_TICKER";
+    private static final int NOTIFICATION_ID = 1001;
+
+
+    public void notification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            //Call Start foreground with notification
+            Intent notificationIntent = new Intent(this, MainActivity.class);
+            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+            NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+                    .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher_foreground))
+                    .setSmallIcon(R.drawable.ic_launcher_foreground)
+                    .setContentTitle("Starting ScreenRecordService")
+                    .setContentText("Starting ScreenRecordService monitoring service")
+                    .setTicker(NOTIFICATION_TICKER)
+                    .setContentIntent(pendingIntent);
+            Notification notification = notificationBuilder.build();
+            NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, NOTIFICATION_CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT);
+            channel.setDescription("NOTIFICATION_CHANNEL_DESC");
+            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            notificationManager.createNotificationChannel(channel);
+            // 必须使用此方法显示通知，不能使用notificationManager.notify，否则会报错
+            startForeground(NOTIFICATION_ID, notification);
+        }
     }
 
 }

@@ -4,6 +4,9 @@
 
     <!--录制音频-->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!--录制屏幕：前台应用权限-->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
 
     <application
         android:allowBackup="true"
@@ -22,7 +25,11 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".ScreenRecordService"></service>
+        <service
+            android:name=".ScreenRecordService"
+            android:enabled="true"
+            android:exported="true"
+            android:foregroundServiceType="mediaProjection"></service>
 
     </application>
 
