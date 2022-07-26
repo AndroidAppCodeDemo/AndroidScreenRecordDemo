@@ -27,8 +27,6 @@
 
         <service
             android:name=".ScreenRecordService"
-            android:enabled="true"
-            android:exported="true"
             android:foregroundServiceType="mediaProjection"></service>
 
     </application>
