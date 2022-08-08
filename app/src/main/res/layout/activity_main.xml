@@ -10,7 +10,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="20dp"
-        android:text="" />
+        android:text="录制尚未开始" />
 
     <LinearLayout
         android:layout_width="match_parent"

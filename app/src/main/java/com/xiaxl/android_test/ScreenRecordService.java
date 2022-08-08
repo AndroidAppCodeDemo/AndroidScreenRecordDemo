@@ -188,7 +188,7 @@ public class ScreenRecordService extends Service {
         //设置声音编码
         mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
         //视频码率
-        mMediaRecorder.setVideoEncodingBitRate(2 * 1920 * 1080);
+        mMediaRecorder.setVideoEncodingBitRate(2 * mScreenWidth * mScreenHeight);
         mMediaRecorder.setVideoFrameRate(18);
         try {
             mMediaRecorder.prepare();

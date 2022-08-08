@@ -1,19 +1,26 @@
 package com.xiaxl.android_test;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.graphics.PixelFormat;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -49,6 +56,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private MediaProjectionManager mMediaProjectionManager;
     // 屏幕采集
     private MediaProjection mMediaProjection;
+
+    /**
+     * 悬浮窗
+     */
+    private WindowManager mWindowManager;
+    private WindowManager.LayoutParams mWindowLayoutParams;
+
+    private View mFloatWindowView;
+    private Button mFloatWindowExitBtn;
 
     /**
      *
@@ -93,6 +109,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onDestroy();
         // 解除service绑定关系
         unbindService(mServiceConnection);
+        // 退出屏幕悬浮窗
+        exitFloatWindow();
     }
 
     @Override
@@ -101,6 +119,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.start_btn: {
                 // 请求进行屏幕录制
                 requestScreenRecord();
+
+
                 break;
             }
             case R.id.end_btn: {
@@ -202,6 +222,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         // 录制中状态
         mRecordStateTv.setText("录制中...");
+        // 显示悬浮窗
+        showFloatWindow();
+
     }
 
     /**
@@ -212,6 +235,71 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mScreenRecordService.stopRecord();
         }
         mRecordStateTv.setText("录制结束！");
+        // 退出悬浮窗
+        exitFloatWindow();
+    }
+
+
+    private void showFloatWindow() {
+        mWindowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+        //设置悬浮窗布局属性
+        mWindowLayoutParams = new WindowManager.LayoutParams();
+        //设置类型
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            mWindowLayoutParams.type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        } else {
+            mWindowLayoutParams.type = WindowManager.LayoutParams.TYPE_PHONE;
+        }
+        //设置行为选项
+        //mWindowLp.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+        mWindowLayoutParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+        //设置悬浮窗的显示位置
+        mWindowLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
+        //设置x周的偏移量
+        mWindowLayoutParams.x = 0;
+        //设置y轴的偏移量
+        mWindowLayoutParams.y = 0;
+        //如果悬浮窗图片为透明图片，需要设置该参数为PixelFormat.RGBA_8888
+        mWindowLayoutParams.format = PixelFormat.RGBA_8888;
+        //设置悬浮窗的宽度
+        mWindowLayoutParams.width = WindowManager.LayoutParams.WRAP_CONTENT;
+        //设置悬浮窗的高度
+        mWindowLayoutParams.height = WindowManager.LayoutParams.WRAP_CONTENT;
+        //设置悬浮窗的布局
+        mFloatWindowView = LayoutInflater.from(this).inflate(R.layout.record_window_float_layout, null);
+        //加载显示悬浮窗
+        mWindowManager.addView(mFloatWindowView, mWindowLayoutParams);
+
+        mFloatWindowExitBtn = mFloatWindowView.findViewById(R.id.record_exit_btn);
+        mFloatWindowExitBtn.setOnClickListener(new View.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+            @Override
+            public void onClick(View view) {
+                stopScreenRecord();
+                //updateViewLayout();
+            }
+        });
+        mFloatWindowExitBtn.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+                stopScreenRecord();
+                return false;
+            }
+        });
+    }
+
+    private void exitFloatWindow() {
+        //
+        mWindowManager.removeView(mFloatWindowView);
+    }
+
+    private void updateViewLayout() {
+        //设置悬浮窗的宽度
+        mWindowLayoutParams.width = WindowManager.LayoutParams.MATCH_PARENT;
+        //设置悬浮窗的高度
+        mWindowLayoutParams.height = WindowManager.LayoutParams.MATCH_PARENT;
+        mWindowManager.updateViewLayout(mFloatWindowView, mWindowLayoutParams);
     }
 
 
