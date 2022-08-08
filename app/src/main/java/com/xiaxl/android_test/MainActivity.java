@@ -64,7 +64,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private WindowManager.LayoutParams mWindowLayoutParams;
 
     private View mFloatWindowView;
-    private Button mFloatWindowExitBtn;
+    private TextView mFloatWindowTv;
 
     /**
      *
@@ -271,8 +271,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //加载显示悬浮窗
         mWindowManager.addView(mFloatWindowView, mWindowLayoutParams);
 
-        mFloatWindowExitBtn = mFloatWindowView.findViewById(R.id.record_exit_btn);
-        mFloatWindowExitBtn.setOnClickListener(new View.OnClickListener() {
+        mFloatWindowTv = mFloatWindowView.findViewById(R.id.record_tv);
+        mFloatWindowTv.setOnClickListener(new View.OnClickListener() {
             @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
             @Override
             public void onClick(View view) {
@@ -280,7 +280,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 //updateViewLayout();
             }
         });
-        mFloatWindowExitBtn.setOnLongClickListener(new View.OnLongClickListener() {
+        mFloatWindowTv.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
                 stopScreenRecord();
