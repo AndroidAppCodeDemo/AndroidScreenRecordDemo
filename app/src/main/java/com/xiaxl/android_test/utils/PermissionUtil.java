@@ -23,7 +23,7 @@ public class PermissionUtil {
             if (checkPermission != PackageManager.PERMISSION_GRANTED) {
                 //动态申请
                 ActivityCompat.requestPermissions(activity, new String[]{
-                        Manifest.permission.RECORD_AUDIO, Manifest.permission.SYSTEM_ALERT_WINDOW}, requestCode);
+                        Manifest.permission.RECORD_AUDIO}, requestCode);
                 return;
             } else {
                 return;

@@ -17,6 +17,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.provider.Settings;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -30,13 +32,18 @@ import static androidx.core.content.PermissionChecker.PERMISSION_DENIED;
 import com.xiaxl.android_test.utils.DisplayScreenHelper;
 import com.xiaxl.android_test.utils.PermissionUtil;
 
+import java.util.concurrent.Callable;
+
+import bolts.Task;
+
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     // 权限请求的 REQUEST_CODE
-    private int PERMISSION_REQUEST_CODE = 101;
+    private static final int PERMISSION_REQUEST_CODE = 1001;
     // 屏幕录制请求的 REQUEST_CODE
-    private int SCREEN_RECORD_REQUEST_CODE = 102;
-
+    private static final int SCREEN_RECORD_REQUEST_CODE = 1002;
+    // alart弹窗 REQUEST_CODE
+    private static final int ALART_WINDOW_PERMISSION_CODE = 1003;
     /**
      * 负责录屏的后台服务(录屏时候一般要进入后台，显示前台界面同时进行录屏)
      */
@@ -119,8 +126,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.start_btn: {
                 // 请求进行屏幕录制
                 requestScreenRecord();
-
-
                 break;
             }
             case R.id.end_btn: {
@@ -133,41 +138,32 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        // 录屏弹窗 用户的选择结果回调
-        if (requestCode == SCREEN_RECORD_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            // 用户同意录屏
-            onScreenRecordGranted(resultCode, data);
-        } else {
-            Toast.makeText(getApplicationContext(), "拒绝录屏", Toast.LENGTH_LONG).show();
-        }
-    }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        for (int temp : grantResults) {
-            // 拒绝授权
-            if (temp == PERMISSION_DENIED) {
-                AlertDialog dialog = new AlertDialog
-                        .Builder(this).setTitle("申请权限").setMessage("这些权限很重要").setNegativeButton("取消", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        Toast.makeText(getApplicationContext(), "取消", Toast.LENGTH_LONG).show();
-                    }
-                }).setPositiveButton("设置", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        // 进入设置页面
-                        Intent intent = new Intent();
-                        intent.setAction(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                        intent.setData(Uri.parse("package:" + MainActivity.this.getPackageName()));
-                        MainActivity.this.startActivity(intent);
-                    }
-                }).create();
-                dialog.show();
+        switch (requestCode) {
+            // 录屏弹窗 用户的选择结果回调
+            case MainActivity.SCREEN_RECORD_REQUEST_CODE:
+                if (resultCode == Activity.RESULT_OK) {
+                    // 用户同意录屏
+                    onScreenRecordGranted(resultCode, data);
+                } else {
+                    Toast.makeText(getApplicationContext(), "拒绝录屏", Toast.LENGTH_LONG).show();
+                }
                 break;
-            }
+            // 悬浮窗权限
+            case MainActivity.ALART_WINDOW_PERMISSION_CODE:
+                // 授权
+                if (checkAlertWindowPermission()) {
+                    // 显示悬浮窗：录制中红点
+                    showFloatWindow();
+                    // 进入后台进行录制
+                    goToBackground();
+                } else {
+                    // TODO 未授权
+                }
+                break;
         }
+
+
     }
 
 
@@ -208,6 +204,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         // 开始进行录制
         startScreenRecord();
+
+        // 有悬浮窗权限：
+        if (checkAlertWindowPermission()) {
+            // 显示悬浮窗：录制中红点
+            showFloatWindow();
+            // 进入后台进行录制
+            goToBackground();
+        }
+        // 没有悬浮窗权限：Activity就不退入后台了，让用户在前台界面操作
+        else {
+            showDialogOnUiThread();
+        }
     }
 
     /**
@@ -217,14 +225,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //
         if (mScreenRecordService != null && !mScreenRecordService.isRecording()) {
             mScreenRecordService.startRecord();
-            Toast.makeText(MainActivity.this, "返回主屏幕进行录制", Toast.LENGTH_SHORT).show();
-            goToBackground();
         }
         // 录制中状态
         mRecordStateTv.setText("录制中...");
-        // 显示悬浮窗
-        showFloatWindow();
-
     }
 
     /**
@@ -237,6 +240,54 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mRecordStateTv.setText("录制结束！");
         // 退出悬浮窗
         exitFloatWindow();
+    }
+
+
+    private void goToBackground() {
+        Intent home = new Intent(Intent.ACTION_MAIN);
+        home.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        home.addCategory(Intent.CATEGORY_HOME);
+        startActivity(home);
+    }
+
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~悬浮窗~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    /**
+     * 悬浮窗 权限
+     */
+    public boolean checkAlertWindowPermission() {
+        return Settings.canDrawOverlays(this);
+    }
+
+
+    //运行在UI线程中
+    public Task<Boolean> showDialogOnUiThread() {
+        //
+        return Task.call(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                // UI_Thread
+                // 没有悬浮窗权限
+                AlertDialog dialog = new AlertDialog
+                        .Builder(MainActivity.this).setTitle("申请权限").setMessage("应用需申请悬浮窗权限，以展示屏幕共享相关的控制按钮！").setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // TODO 取消：没权限
+                    }
+                }).setPositiveButton("设置", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // 进入设置页面
+                        String ACTION_MANAGE_OVERLAY_PERMISSION = "android.settings.action.MANAGE_OVERLAY_PERMISSION";
+                        Intent intent = new Intent(ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + MainActivity.this.getPackageName()));
+                        MainActivity.this.startActivityForResult(intent, MainActivity.ALART_WINDOW_PERMISSION_CODE);
+                    }
+                }).create();
+                dialog.show();
+                return true;
+            }
+        }, Task.UI_THREAD_EXECUTOR);
     }
 
 
@@ -277,7 +328,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onClick(View view) {
                 stopScreenRecord();
-                //updateViewLayout();
             }
         });
         mFloatWindowTv.setOnLongClickListener(new View.OnLongClickListener() {
@@ -300,14 +350,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //设置悬浮窗的高度
         mWindowLayoutParams.height = WindowManager.LayoutParams.MATCH_PARENT;
         mWindowManager.updateViewLayout(mFloatWindowView, mWindowLayoutParams);
-    }
-
-
-    private void goToBackground() {
-        Intent home = new Intent(Intent.ACTION_MAIN);
-        home.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        home.addCategory(Intent.CATEGORY_HOME);
-        startActivity(home);
     }
 
 
